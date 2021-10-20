@@ -5,6 +5,7 @@ from commons.pyautogui_commons import *
 from commons.pathlib_commons import *
 from commons.data_commons import *
 from ai.template_matching import *
+from ai.image_hashing import *
 from config import SLEEP_TIME
 
 
@@ -13,49 +14,71 @@ def get_screen_image():
     return read_image(screen_path)
 
 
-def get_animal_images(game_image):
-    shop_animal_rectangles = [
-        [526, 698, 9, 9],
-        [670, 698, 9, 9],
-        [814, 698, 9, 9],
+def get_pedastal_positions():
+    pedastal_spacing = 144
+    first_pedastal_x = 522
+    first_pedastal_y = 698
+
+    pedastal_positions = [
+        (first_pedastal_x + i*pedastal_spacing, first_pedastal_y) for i in range(7)
     ]
 
-    shop_animal_images = [
+    return pedastal_positions
+
+
+def get_pedastal_images(*, game_image, crop_width=9, crop_height=9, x_offset=0, y_offset=0):
+    pedastal_positions = get_pedastal_positions()
+
+    pedastal_rectangles = [
+        [x + x_offset - crop_width//2, y + y_offset - crop_height//2, crop_width, crop_height] for x, y in pedastal_positions
+    ]
+
+    pedastal_images = [
         get_cropped_image(loaded_image=game_image, rectangle=rectangle)
-        for rectangle in shop_animal_rectangles
+        for rectangle in pedastal_rectangles
     ]
 
-    return shop_animal_images
+    return pedastal_images
 
 
-def get_full_animal_images(game_image):
-    shop_animal_rectangles = [
-        [456, 574, 143, 180],
-        [600, 574, 143, 180],
-        [744, 574, 143, 180],
-    ]
+def get_small_pedastal_images(game_image):
+    return get_pedastal_images(game_image=game_image, crop_width=9, crop_height=9)
 
-    shop_animal_images = [
-        get_cropped_image(loaded_image=game_image, rectangle=rectangle)
-        for rectangle in shop_animal_rectangles
-    ]
 
-    return shop_animal_images
+def get_large_pedastal_images(game_image):
+    return get_pedastal_images(game_image=game_image, crop_width=101, crop_height=101)
 
 
 def get_tier_images(game_image):
-    shop_animal_tiers = [
-        [460, 581, 48, 48],
-        [604, 581, 48, 48],
-        [748, 581, 48, 48],
+    return get_pedastal_images(game_image=game_image, crop_width=32, crop_height=32, x_offset=-37, y_offset=-93)
+
+
+def get_animals():
+    return [
+        ["ant", "beaver", "cricket", "duck", "fish",
+            "horse", "mosquito", "otter", "pig", ],
+        ["crab", "dodo", "dog", "elephant", "flamingo", "hedgehog",
+            "peacock", "rat", "shrimp", "spider", "swan", ],
+        ["badger", "blowfish", "camel", "giraffe", "kangaroo", "ox",
+            "rabbit", "sheep", "snail", "turtle", "whale", ],
+        ["bison", "deer", "dolphin", "hippo", "monkey",
+            "penguin", "rooster", "skunk", "squirel", "worm"],
+        ["cow", "crocodile", "parrot", "rhino",
+            "scorpion", "seal", "shark", "turkey", ],
+        ["cat", "dragon", "fly", "gorilla",
+            "leopard", "mammoth", "snake", "tiger"],
     ]
 
-    shop_tier_images = [
-        get_cropped_image(loaded_image=game_image, rectangle=rectangle)
-        for rectangle in shop_animal_tiers
-    ]
 
-    return shop_tier_images
+def get_foods():
+    return [
+        ["apple", "honey"],
+        ["cupcake", "meat bone", "sleeping pill"],
+        ["garlic", "salad bowl"],
+        ["canned food", "pear"],
+        ["chili", "chocolate", "sushi"],
+        ["melon", "mushroom", "pizza", "steak"],
+    ]
 
 
 def check_if_endturn_button_exists():
@@ -157,46 +180,74 @@ def update_turn_and_tier(turn):
     return new_turn, new_tier
 
 
-def unique_file_name(*, slot, money, suffix=''):
-    return "slot_" + str(slot+1) + "_" + "money_" + str(money) + suffix + ".png"
+def unique_file_name(*, slot=0, money=0, turn=0, suffix=''):
+    return "z_slot_" + str(slot+1) + "_money_" + str(money) + "_turn_" + str(turn) + suffix + ".png"
 
 
-def collect_shop_data():
-    display_ready_button()
+def list_missing_shop_data():
+    collected_data = get_all_files('images/data/animals')
+    collected_animals = [get_filename(relative_path)
+                         for relative_path in collected_data]
 
-    turn = 1
-    tier = 1
+    all_animals = get_animals()
 
-    while turn == 1:
-        wait_for_turn_start()
-        print(f"{turn=}")
-        print(f"{tier=}")
+    for tier_number, tier in enumerate(all_animals):
+        print()
+        print(f'tier {tier_number+1}:\n------------------')
+        for animal in tier:
+            if animal not in collected_animals:
+                print(animal, end=', ')
 
-        for money in reversed(range(10)):
-            reroll_shop()
-            screen_image = get_screen_image()
 
-            animal_images = get_animal_images(screen_image)
-            for slot, animal_image in enumerate(animal_images):
-                write_image(loaded_image=animal_image,
-                            relative_path="images/data/animals/" + unique_file_name(slot=slot, money=money))
+def parse_batch_data():
+    shop_image_paths = get_all_files('images/data/shops/todo')
+    shop_images = [read_image(shop_image_path)
+                   for shop_image_path in shop_image_paths]
+    for turn, shop_image in enumerate(shop_images):
+        small_pedastal_images = get_small_pedastal_images(shop_image)
+        for slot, small_pedastal_image in enumerate(small_pedastal_images):
+            write_image(loaded_image=small_pedastal_image,
+                        relative_path="images/data/animals/" + unique_file_name(slot=slot, turn=turn))
 
-            full_animal_images = get_full_animal_images(screen_image)
-            for slot, full_animal_image in enumerate(full_animal_images):
-                write_image(loaded_image=full_animal_image,
-                            relative_path="images/data/animals/" + unique_file_name(slot=slot, money=money, suffix='_full'))
+        large_pedastal_images = get_large_pedastal_images(shop_image)
+        for slot, large_pedastal_image in enumerate(large_pedastal_images):
+            write_image(loaded_image=large_pedastal_image,
+                        relative_path="images/data/animals/" + unique_file_name(slot=slot, turn=turn, suffix='_large'))
 
-            tier_images = get_tier_images(screen_image)
-            for slot, tier_image in enumerate(tier_images):
-                write_image(loaded_image=tier_image,
-                            relative_path="images/data/tiers/" + unique_file_name(slot=slot, money=money))
+        tier_images = get_tier_images(shop_image)
+        for slot, tier_image in enumerate(tier_images):
+            write_image(loaded_image=tier_image,
+                        relative_path="images/data/tiers/" + unique_file_name(slot=slot, turn=turn))
 
-        end_turn()
-        if turn == 1:
-            choose_name()
 
-        turn, tier = update_turn_and_tier(turn)
-        wait_for_turn_end()
-        continue_after_loss()
+def classify_game_state():
+    shop_image_paths = get_all_files('images/data/shops/done')
+    shop_images = [read_image(shop_image_path)
+                   for shop_image_path in shop_image_paths]
 
-    display_end_message()
+    hash_to_name = {
+        md5_hash_image(file_path=file_path): get_filename(file_path) for file_path in get_all_files('images/data/animals')
+    }
+
+    print(f"{hash_to_name=}")
+
+    for shop_image in shop_images:
+        small_pedastal_images = get_small_pedastal_images(shop_image)
+        image_classes = []
+        for slot, small_pedastal_image in enumerate(small_pedastal_images):
+            file_path = 'images/screen_capture/temp.png'
+            write_image(loaded_image=small_pedastal_image,
+                        relative_path=file_path)
+            image_hash = md5_hash_image(file_path=file_path)
+            image_class = hash_to_name.get(image_hash, None)
+            image_classes.append(image_class)
+
+        for (x, y), image_class in zip(get_pedastal_positions(), image_classes):
+            rectangle = [x-50, y-50, 100, 100]
+            draw_rectangle(loaded_image=shop_image,
+                           rectangle=rectangle)
+            draw_text_for_rectangle(
+                loaded_image=shop_image, text=image_class, rectangle=rectangle)
+
+        show_image(resize_image(target_width=1280,
+                   target_height=720, loaded_image=shop_image))

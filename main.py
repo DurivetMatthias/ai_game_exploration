@@ -59,28 +59,28 @@ from games import super_auto_pets
 
 #     sprites = [read_image(sprite_path) for sprite_path in sprite_paths]
 #     animal_names_in_order = [
-#         ["ant", "beaver", "cricket", "duck", "fish",
-#             "horse", "mosquito", "otter", "pig", ],
-#         ["crab", "dodo", "dog", "elephant", "flamingo", "hedgehog",
-#             "peacock", "rat", "shrimp", "spider", "swan", ],
-#         ["badger", "blowfish", "camel", "giraffe", "kangaroo", "ox",
-#             "rabbit", "sheep", "snail", "turtle", "whale", ],
-#         ["bison", "deer", "dolphin", "hippo", "monkey",
-#             "penguin", "rooster", "skunk", "squirel", "worm"],
-#         ["cow", "crocodile", "parrot", "rhino",
-#             "scorpion", "seal", "shark", "turkey", ],
-#         ["cat", "dragon", "fly", "fly", "gorilla",
-#             "leopard", "mammoth", "snake", "tiger"],
-#     ]
+#     ["ant", "beaver", "cricket", "duck", "fish",
+#         "horse", "mosquito", "otter", "pig", ],
+#     ["crab", "dodo", "dog", "elephant", "flamingo", "hedgehog",
+#         "peacock", "rat", "shrimp", "spider", "swan", ],
+#     ["badger", "blowfish", "camel", "giraffe", "kangaroo", "ox",
+#         "rabbit", "sheep", "snail", "turtle", "whale", ],
+#     ["bison", "deer", "dolphin", "hippo", "monkey",
+#         "penguin", "rooster", "skunk", "squirel", "worm"],
+#     ["cow", "crocodile", "parrot", "rhino",
+#         "scorpion", "seal", "shark", "turkey", ],
+#     ["cat", "dragon", "fly", "fly", "gorilla",
+#         "leopard", "mammoth", "snake", "tiger"],
+# ]
 
-#     food_names_in_order = [
-#         ["apple", "honey"],
-#         ["cupcake", "meat bone", "sleeping pill"],
-#         ["garlic", "salad bowl"],
-#         ["canned food", "pear"],
-#         ["chili", "chocolate", "sushi"],
-#         ["melon", "mushroom", "melon", "mushroom", "pizza", "steak"],
-#     ]
+# food_names_in_order = [
+#     ["apple", "honey"],
+#     ["cupcake", "meat bone", "sleeping pill"],
+#     ["garlic", "salad bowl"],
+#     ["canned food", "pear"],
+#     ["chili", "chocolate", "sushi"],
+#     ["melon", "mushroom", "melon", "mushroom", "pizza", "steak"],
+# ]
 
 #     target_names_in_order = [
 #         *flatten(animal_names_in_order), *flatten(food_names_in_order)]
@@ -192,6 +192,12 @@ from games import super_auto_pets
 
 
 if __name__ == "__main__":
-    # super_auto_pets.collect_shop_data()
-    # find_exact_match('images/data/tiers')
-    find_exact_match('images/data/animals')
+    # super_auto_pets.parse_batch_data()
+    # show_exact_matches('images/data/tiers')
+    # show_exact_matches('images/data/animals')
+    # delete_low_occurences(image_dir='images/data/animals', threshold=5)
+    # delete_low_occurences(image_dir='images/data/tiers', threshold=5)
+    # delete_duplicates('images/data/animals')
+    # delete_duplicates('images/data/tiers')
+    # super_auto_pets.list_missing_shop_data()
+    super_auto_pets.classify_game_state()
