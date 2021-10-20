@@ -1,6 +1,6 @@
 from time import sleep
 import pyautogui
-from config import SLEEP_TIME
+from config import MOVE_DURATION, SLEEP_TIME
 
 
 def display_ready_button():
@@ -30,3 +30,11 @@ def click_button(image_path):
 def click(x, y):
     pyautogui.click(x, y)
     sleep(SLEEP_TIME)
+
+
+def move_mouse(x, y):
+    pyautogui.moveTo(x, y, duration=MOVE_DURATION)
+
+
+def drag_and_release(x, y):
+    pyautogui.dragTo(x, y, duration=MOVE_DURATION)

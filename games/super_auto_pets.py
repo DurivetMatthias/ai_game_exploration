@@ -1,3 +1,4 @@
+import enum
 import numpy as np
 from statistics import mean
 from commons.opencv_commons import *
@@ -9,11 +10,6 @@ from ai.image_hashing import *
 from config import SLEEP_TIME
 
 
-def get_screen_image():
-    screen_path = capture_screen()
-    return read_image(screen_path)
-
-
 def get_pedastal_positions():
     pedastal_spacing = 144
     first_pedastal_x = 522
@@ -21,6 +17,18 @@ def get_pedastal_positions():
 
     pedastal_positions = [
         (first_pedastal_x + i*pedastal_spacing, first_pedastal_y) for i in range(7)
+    ]
+
+    return pedastal_positions
+
+
+def get_active_positions():
+    pedastal_spacing = 144
+    first_pedastal_x = 530
+    first_pedastal_y = 400
+
+    pedastal_positions = [
+        (first_pedastal_x + i*pedastal_spacing, first_pedastal_y) for i in range(5)
     ]
 
     return pedastal_positions
@@ -81,47 +89,6 @@ def get_foods():
     ]
 
 
-def check_if_endturn_button_exists():
-    image_path = "images/buttons/end_turn_button.png"
-    position = locate_image(image_path)
-    if not position:
-        return False
-    else:
-        return True
-
-
-def wait_for_turn_start():
-    positive_checks = 0
-    threshold = 2
-    while True:
-        if not check_if_endturn_button_exists():
-            positive_checks = 0
-            sleep(SLEEP_TIME)
-            continue
-
-        if positive_checks >= threshold:
-            break
-
-        positive_checks += 1
-        sleep(SLEEP_TIME)
-
-
-def wait_for_turn_end():
-    positive_checks = 0
-    threshold = 2
-    while True:
-        if check_if_endturn_button_exists():
-            positive_checks = 0
-            sleep(SLEEP_TIME)
-            continue
-
-        if positive_checks >= threshold:
-            break
-
-        positive_checks += 1
-        sleep(SLEEP_TIME)
-
-
 def wait_for_button(button_image_path):
     positive_checks = 0
     threshold = 2
@@ -139,14 +106,6 @@ def wait_for_button(button_image_path):
             break
 
 
-def reroll_shop():
-    click_button("images/buttons/roll_button.png")
-
-
-def end_turn():
-    click_button("images/buttons/end_turn_button.png")
-
-
 def continue_after_loss():
     x, y = wait_for_button("images/buttons/defeat_button.png")
     click(x, y)
@@ -158,26 +117,6 @@ def choose_name():
     click(400, 700)
     x, y = wait_for_button("images/buttons/confirm.png")
     click(x, y)
-
-
-def update_turn_and_tier(turn):
-    turn_to_tier_mapping = {
-        1: 1,
-        2: 1,
-        3: 2,
-        4: 2,
-        5: 3,
-        6: 3,
-        7: 4,
-        8: 4,
-        9: 5,
-        10: 5,
-        11: 6,
-        12: 6,
-    }
-    new_turn = turn + 1
-    new_tier = turn_to_tier_mapping.get(new_turn, 6)
-    return new_turn, new_tier
 
 
 def unique_file_name(*, slot=0, money=0, turn=0, suffix=''):
@@ -229,8 +168,6 @@ def classify_game_state():
         md5_hash_image(file_path=file_path): get_filename(file_path) for file_path in get_all_files('images/data/animals')
     }
 
-    print(f"{hash_to_name=}")
-
     for shop_image in shop_images:
         small_pedastal_images = get_small_pedastal_images(shop_image)
         image_classes = []
@@ -251,3 +188,129 @@ def classify_game_state():
 
         show_image(resize_image(target_width=1280,
                    target_height=720, loaded_image=shop_image))
+
+
+class Actions(enum.Enum):
+    buy = 'buy'
+    sell = 'sell'
+    freeze = 'freeze'
+    move = 'move'
+    combine = 'combine'
+    roll = 'roll'
+
+
+class Game:
+    def __init__(self):
+        self.turn = 1
+        self.tier = 1
+        self.gold = 10
+        self.hash_to_animal = {
+            md5_hash_image(file_path=file_path): get_filename(file_path) for file_path in get_all_files('images/data/animals')
+        }
+        self.active_animals = [],
+        self.shop_animals = [],
+
+    def play_multiple_games(*, self, amount):
+        for _ in range(amount):
+            self.play_game()
+
+    def play_game(self):
+        while True:
+            self.wait_for_turn_start()
+            self.play_turn()
+            self.wait_for_turn_end()
+            self.increment_turn_and_tier()
+
+    def wait_for_turn_start(self):
+        while True:
+            if not locate_image("images/buttons/end_turn_button.png"):
+                sleep(SLEEP_TIME)
+                continue
+            break
+
+    def wait_for_turn_end(self):
+        while True:
+            if locate_image("images/buttons/end_turn_button.png"):
+                sleep(SLEEP_TIME)
+                continue
+
+            break
+
+    def play_turn(self):
+        while self.gold > 0:
+            self.read_game_state()
+            actions = self.plan_actions()
+            for action in actions:
+                self.take_action(action)
+        self.end_turn()
+
+    def increment_turn_and_tier(self):
+        turn_to_tier_mapping = {
+            1: 1,
+            2: 1,
+            3: 2,
+            4: 2,
+            5: 3,
+            6: 3,
+            7: 4,
+            8: 4,
+            9: 5,
+            10: 5,
+        }
+        self.turn += 1
+        self.tier = turn_to_tier_mapping.get(new_turn, 6)
+
+    def read_game_state(self):
+        # game_image = read_image(capture_screen())
+        game_image = read_image('images/data/shops/done/Screenshot (50).png')
+        small_pedastal_images = get_small_pedastal_images(game_image)
+        self.shop_animals = []
+
+        for small_pedastal_image in small_pedastal_images:
+            file_path = 'images/screen_capture/temp.png'
+            write_image(loaded_image=small_pedastal_image,
+                        relative_path=file_path)
+            image_hash = md5_hash_image(file_path=file_path)
+            image_class = self.hash_to_animal.get(image_hash, 'empty')
+            self.shop_animals.append(image_class)
+
+    def reroll_shop(self):
+        click_button("images/buttons/roll_button.png")
+        self.gold -= 1
+
+    def end_turn(self):
+        click_button("images/buttons/end_turn_button.png")
+
+    def plan_actions(self):
+        if self.turn == 1:
+            return [
+                (Actions.buy, 0, 0),
+                (Actions.buy, 1, 1),
+                (Actions.buy, 2, 2),
+                (Actions.roll, None, None)
+            ]
+        if turn == 2:
+            return [
+                (Actions.buy, 0, 0),
+                (Actions.buy, 1, 1),
+                (Actions.buy, 2, 2),
+                (Actions.roll, None, None)
+            ]
+        else:
+            return [
+                (Actions.buy, 0, 0),
+                (Actions.buy, 1, 1),
+                (Actions.buy, 2, 2),
+                (Actions.roll, None, None)
+            ]
+
+    def take_action(self, actionTuple):
+        action, index, index2 = actionTuple
+        if action == Actions.roll:
+            self.reroll_shop()
+        if action == Actions.buy:
+            move_mouse(*get_pedastal_positions()[index])
+            drag_and_release(*get_active_positions()[index2])
+            self.gold -= 3
+        else:
+            print(actionTuple)

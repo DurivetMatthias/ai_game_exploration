@@ -200,4 +200,6 @@ if __name__ == "__main__":
     # delete_duplicates('images/data/animals')
     # delete_duplicates('images/data/tiers')
     # super_auto_pets.list_missing_shop_data()
-    super_auto_pets.classify_game_state()
+    # super_auto_pets.classify_game_state()
+    game = super_auto_pets.Game()
+    game.play_turn()
