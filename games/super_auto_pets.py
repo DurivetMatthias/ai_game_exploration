@@ -1,4 +1,5 @@
 import enum
+import random
 import numpy as np
 from statistics import mean
 from commons.opencv_commons import *
@@ -7,7 +8,7 @@ from commons.pathlib_commons import *
 from commons.data_commons import *
 from ai.template_matching import *
 from ai.image_hashing import *
-from config import SLEEP_TIME
+from config import SCEENSHOT_DELAY
 
 
 def get_pedastal_positions():
@@ -89,160 +90,172 @@ def get_foods():
     ]
 
 
-def wait_for_button(button_image_path):
-    positive_checks = 0
-    threshold = 2
+def wait_for_image(image_path):
+    print(f"{image_path=}")
     while True:
-        sleep(SLEEP_TIME)
-        found_position = locate_image(button_image_path)
+        found_position = locate_image(image_path)
         if not found_position:
-            positive_checks = 0
-            sleep(SLEEP_TIME)
             continue
-
-        positive_checks += 1
-        if positive_checks >= threshold:
+        else:
             return found_position
-            break
 
 
-def continue_after_loss():
-    x, y = wait_for_button("images/buttons/defeat_button.png")
-    click(x, y)
+def wait_for_button(button_image_path):
+    button_position = wait_for_image(button_image_path)
+    click(*button_position)
 
 
 def choose_name():
-    wait_for_button("images/buttons/pick_names.png")
+    wait_for_image("images/buttons/pick_names.png")
     click(400, 400)
     click(400, 700)
-    x, y = wait_for_button("images/buttons/confirm.png")
-    click(x, y)
+    wait_for_button("images/buttons/confirm_name.png")
 
 
-def unique_file_name(*, slot=0, money=0, turn=0, suffix=''):
-    return "z_slot_" + str(slot+1) + "_money_" + str(money) + "_turn_" + str(turn) + suffix + ".png"
+def start_game():
+    wait_for_button("images/buttons/start_game_button.png")
 
 
-def list_missing_shop_data():
-    collected_data = get_all_files('images/data/animals')
-    collected_animals = [get_filename(relative_path)
-                         for relative_path in collected_data]
-
-    all_animals = get_animals()
-
-    for tier_number, tier in enumerate(all_animals):
-        print()
-        print(f'tier {tier_number+1}:\n------------------')
-        for animal in tier:
-            if animal not in collected_animals:
-                print(animal, end=', ')
+def speed_up():
+    speed_up_position = (1330, 150)
+    move_mouse(*speed_up_position)
+    sleep(5)
+    click(*speed_up_position)
+    print('Clicked speed up button')
 
 
-def parse_batch_data():
-    shop_image_paths = get_all_files('images/data/shops/todo')
-    shop_images = [read_image(shop_image_path)
-                   for shop_image_path in shop_image_paths]
-    for turn, shop_image in enumerate(shop_images):
-        small_pedastal_images = get_small_pedastal_images(shop_image)
-        for slot, small_pedastal_image in enumerate(small_pedastal_images):
-            write_image(loaded_image=small_pedastal_image,
-                        relative_path="images/data/animals/" + unique_file_name(slot=slot, turn=turn))
-
-        large_pedastal_images = get_large_pedastal_images(shop_image)
-        for slot, large_pedastal_image in enumerate(large_pedastal_images):
-            write_image(loaded_image=large_pedastal_image,
-                        relative_path="images/data/animals/" + unique_file_name(slot=slot, turn=turn, suffix='_large'))
-
-        tier_images = get_tier_images(shop_image)
-        for slot, tier_image in enumerate(tier_images):
-            write_image(loaded_image=tier_image,
-                        relative_path="images/data/tiers/" + unique_file_name(slot=slot, turn=turn))
+class TurnResults(enum.Enum):
+    win = 'win'
+    loss = 'loss'
+    draw = 'draw'
+    game_over = 'game over'
+    game_won = 'Chicken diner!!!'
 
 
-def classify_game_state():
-    shop_image_paths = get_all_files('images/data/shops/done')
-    shop_images = [read_image(shop_image_path)
-                   for shop_image_path in shop_image_paths]
+def wait_for_turn_result():
+    while True:
+        win_position = locate_image("images/buttons/win_button.png")
+        if win_position:
+            click(*win_position)
+            return TurnResults.win
 
-    hash_to_name = {
-        md5_hash_image(file_path=file_path): get_filename(file_path) for file_path in get_all_files('images/data/animals')
-    }
+        loss_position = locate_image("images/buttons/loss_button.png")
+        if loss_position:
+            click(*loss_position)
+            return TurnResults.loss
 
-    for shop_image in shop_images:
-        small_pedastal_images = get_small_pedastal_images(shop_image)
-        image_classes = []
-        for slot, small_pedastal_image in enumerate(small_pedastal_images):
-            file_path = 'images/screen_capture/temp.png'
-            write_image(loaded_image=small_pedastal_image,
-                        relative_path=file_path)
-            image_hash = md5_hash_image(file_path=file_path)
-            image_class = hash_to_name.get(image_hash, None)
-            image_classes.append(image_class)
+        draw_position = locate_image("images/buttons/draw_button.png")
+        if draw_position:
+            click(*draw_position)
+            return TurnResults.draw
 
-        for (x, y), image_class in zip(get_pedastal_positions(), image_classes):
-            rectangle = [x-50, y-50, 100, 100]
-            draw_rectangle(loaded_image=shop_image,
-                           rectangle=rectangle)
-            draw_text_for_rectangle(
-                loaded_image=shop_image, text=image_class, rectangle=rectangle)
+        game_over_position = locate_image(
+            "images/buttons/game_over_button.png")
+        if game_over_position:
+            click(*game_over_position)
+            return TurnResults.game_over
 
-        show_image(resize_image(target_width=1280,
-                   target_height=720, loaded_image=shop_image))
+        # TODO :) take screenshot
+        # game_won_position = locate_image("images/buttons/win_button.png")
+        # if game_won_position:
+        #     click(*game_won_position)
+        #     return TurnResults.game_won
 
 
-class Actions(enum.Enum):
-    buy = 'buy'
-    sell = 'sell'
-    freeze = 'freeze'
-    move = 'move'
-    combine = 'combine'
-    roll = 'roll'
+def wait_for_turn_start():
+    while True:
+        if not locate_image("images/buttons/end_turn_button.png"):
+            continue
+        sleep(5)
+        break
+
+
+def wait_for_turn_end():
+    while True:
+        if locate_image("images/buttons/end_turn_button.png"):
+            continue
+        sleep(5)
+        break
+
+
+def end_turn():
+    wait_for_button("images/buttons/end_turn_button.png")
+
+
+def click_away_tier_upgrade():
+    click(960, 0)
+
+
+def click_away_game_over():
+    sleep(5)
+    click(960, 0)
+    # wait_for_button("images/buttons/game_over_button.png")
+
+
+def click_away_points():
+    sleep(5)
+    click(960, 0)
+    # wait_for_button("images/buttons/gain_points_button.png")
 
 
 class Game:
     def __init__(self):
-        self.turn = 1
-        self.tier = 1
-        self.gold = 10
         self.hash_to_animal = {
             md5_hash_image(file_path=file_path): get_filename(file_path) for file_path in get_all_files('images/data/animals')
         }
-        self.active_animals = [],
-        self.shop_animals = [],
+        self.behavior = BaselineBehavior(self)
 
-    def play_multiple_games(*, self, amount):
+    def reset_game_state(self):
+        self.turn = 1
+        self.tier = 1
+        self.gold = 10
+        self.my_animals = []
+        self.shop_animals = []
+        self.frozen_memory = []
+        self.wins = 0
+        self.losses = 0
+
+    def play_multiple_games(self, amount):
         for _ in range(amount):
             self.play_game()
 
     def play_game(self):
-        while True:
-            self.wait_for_turn_start()
+        self.reset_game_state()
+        start_game()
+        while self.losses < 4 and self.wins < 10:
+            wait_for_turn_start()
+            if self.turn in [3, 5, 7, 9, 11]:
+                click_away_tier_upgrade()
+            for frozen_index in reversed(range(len(self.frozen_memory))):
+                self.unfreeze(frozen_index)
             self.play_turn()
-            self.wait_for_turn_end()
+            wait_for_turn_end()
+            if self.turn == 1:
+                choose_name()
+            speed_up()
+            turn_result = wait_for_turn_result()
+            if turn_result == TurnResults.win:
+                self.wins += 1
+            if turn_result == TurnResults.loss:
+                self.losses += 1
+            if turn_result == TurnResults.game_over:
+                click_away_game_over()
+                print('clicked game over')
+                click_away_points()
+                print('clicked to gain points')
+                self.losses += 1
+            if turn_result == TurnResults.game_won:
+                # TODO :)
+                self.wins += 1
             self.increment_turn_and_tier()
-
-    def wait_for_turn_start(self):
-        while True:
-            if not locate_image("images/buttons/end_turn_button.png"):
-                sleep(SLEEP_TIME)
-                continue
-            break
-
-    def wait_for_turn_end(self):
-        while True:
-            if locate_image("images/buttons/end_turn_button.png"):
-                sleep(SLEEP_TIME)
-                continue
-
-            break
 
     def play_turn(self):
         while self.gold > 0:
             self.read_game_state()
-            actions = self.plan_actions()
-            for action in actions:
-                self.take_action(action)
-        self.end_turn()
+            self.behavior.perform_action()
+        self.read_game_state()
+        self.behavior.actions_before_combat()
+        end_turn()
 
     def increment_turn_and_tier(self):
         turn_to_tier_mapping = {
@@ -258,11 +271,13 @@ class Game:
             10: 5,
         }
         self.turn += 1
-        self.tier = turn_to_tier_mapping.get(new_turn, 6)
+        self.tier = turn_to_tier_mapping.get(self.turn, 6)
+        self.gold = 10
 
     def read_game_state(self):
-        # game_image = read_image(capture_screen())
-        game_image = read_image('images/data/shops/done/Screenshot (50).png')
+        sleep(SCEENSHOT_DELAY)
+        game_image = read_image(capture_screen())
+
         small_pedastal_images = get_small_pedastal_images(game_image)
         self.shop_animals = []
 
@@ -274,43 +289,117 @@ class Game:
             image_class = self.hash_to_animal.get(image_hash, 'empty')
             self.shop_animals.append(image_class)
 
-    def reroll_shop(self):
-        click_button("images/buttons/roll_button.png")
+    def freeze(self, animal=None, index=None):
+        if animal:
+            freeze_index = self.shop_animals.index(animal)
+            freeze_position = get_pedastal_positions()[freeze_index]
+        else:
+            freeze_position = get_pedastal_positions()[index]
+
+        freeze_button_position = (1100, 1000)
+        shop_zero_position = get_pedastal_positions()[0]
+
+        click(*freeze_position)
+        click(*freeze_button_position)
+        self.frozen_memory.append(animal)
+
+    def unfreeze(self, unfreeze_index):
+        unfreeze_position = get_pedastal_positions()[unfreeze_index]
+
+        unfreeze_button_position = (1100, 1000)
+
+        click(*unfreeze_position)
+        click(*unfreeze_button_position)
+        self.frozen_memory = [
+            *self.frozen_memory[:unfreeze_index],
+            *self.frozen_memory[unfreeze_index+1:],
+        ]
+
+    def sell(self):
+        sell_index = len(self.my_animals) - 1
+        sell_position = get_active_positions()[sell_index]
+
+        sell_button_position = (1200, 1000)
+
+        click(*sell_position)
+        click(*sell_button_position)
+        self.gold += 1
+        self.my_animals = [
+            *self.my_animals[:sell_index],
+            *self.my_animals[sell_index+1:],
+        ]
+
+    def buy(self, animal, combine=False):
+        buy_index = self.shop_animals.index(animal)
+        buy_position = get_pedastal_positions()[buy_index]
+
+        if combine and animal in self.my_animals:
+            drop_index = self.my_animals.index(animal)
+            drop_position = get_active_positions()[drop_index]
+        else:
+            drop_index = len(self.my_animals)
+            drop_position = get_active_positions()[drop_index]
+
+        click(*buy_position)
+        click(*drop_position)
+        self.gold -= 3
+        if not combine or animal not in self.my_animals:
+            self.my_animals = [
+                *self.my_animals[:drop_index],
+                animal,
+                *self.my_animals[drop_index:],
+            ]
+
+    def reroll(self):
+        wait_for_button("images/buttons/roll_button.png")
         self.gold -= 1
 
-    def end_turn(self):
-        click_button("images/buttons/end_turn_button.png")
 
-    def plan_actions(self):
-        if self.turn == 1:
-            return [
-                (Actions.buy, 0, 0),
-                (Actions.buy, 1, 1),
-                (Actions.buy, 2, 2),
-                (Actions.roll, None, None)
-            ]
-        if turn == 2:
-            return [
-                (Actions.buy, 0, 0),
-                (Actions.buy, 1, 1),
-                (Actions.buy, 2, 2),
-                (Actions.roll, None, None)
-            ]
-        else:
-            return [
-                (Actions.buy, 0, 0),
-                (Actions.buy, 1, 1),
-                (Actions.buy, 2, 2),
-                (Actions.roll, None, None)
-            ]
+class BaselineBehavior:
+    def __init__(self, game):
+        self.game = game
+        random.seed(1)
 
-    def take_action(self, actionTuple):
-        action, index, index2 = actionTuple
-        if action == Actions.roll:
-            self.reroll_shop()
-        if action == Actions.buy:
-            move_mouse(*get_pedastal_positions()[index])
-            drag_and_release(*get_active_positions()[index2])
-            self.gold -= 3
+    def perform_action(self):
+
+        if all(['empty' in animal for animal in self.game.shop_animals[:3]]):
+            print('everything empty: turn',
+                  self.game.turn, 'gold', self.game.gold, 'shop', self.game.shop_animals[:3])
+            self.game.reroll()
         else:
-            print(actionTuple)
+            if len(self.game.my_animals) < 5:
+                buy_index = random.randint(0, 2)
+                while 'empty' in self.game.shop_animals[buy_index]:
+                    buy_index = random.randint(0, 2)
+                self.attempt_to_buy(
+                    self.game.shop_animals[buy_index], combine=False, index=buy_index)
+            else:
+                for index, animal in enumerate(self.game.shop_animals):
+                    if animal in self.game.my_animals:
+                        self.attempt_to_buy(animal, combine=True, index=index)
+                        return None
+                self.game.reroll()
+
+    def actions_before_combat(self):
+        for index, animal in enumerate(self.game.shop_animals):
+            if animal in self.game.my_animals:
+                self.game.freeze(index=index)
+
+    def attempt_to_buy(self, animal, combine=False, index=None):
+
+        # if len(self.game.my_animals) < 5:
+
+        if self.game.gold >= 3:
+            self.game.buy(animal, combine=combine)
+
+        else:
+            self.game.freeze(index=index)
+
+        # elif len(self.game.my_animals) == 5:
+
+        #     if self.game.gold >= 2:
+        #         self.game.sell()
+        #         self.game.buy(animal)
+
+        #     else:
+        #         self.game.freeze(animal)

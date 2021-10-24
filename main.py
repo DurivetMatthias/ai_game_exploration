@@ -202,4 +202,5 @@ if __name__ == "__main__":
     # super_auto_pets.list_missing_shop_data()
     # super_auto_pets.classify_game_state()
     game = super_auto_pets.Game()
-    game.play_turn()
+    # game.play_turn()
+    game.play_multiple_games(50)
