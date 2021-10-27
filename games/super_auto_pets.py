@@ -1,5 +1,6 @@
 import enum
 import random
+import uuid
 import numpy as np
 from statistics import mean
 from commons.opencv_commons import *
@@ -183,6 +184,7 @@ def end_turn():
 
 
 def click_away_tier_upgrade():
+    sleep(2)
     click(960, 0)
 
 
@@ -214,6 +216,7 @@ class Game:
         self.frozen_memory = []
         self.wins = 0
         self.losses = 0
+        self.game_id = uuid.uuid4()
 
     def play_multiple_games(self, amount):
         for _ in range(amount):
@@ -223,31 +226,62 @@ class Game:
         self.reset_game_state()
         start_game()
         while self.losses < 4 and self.wins < 10:
-            wait_for_turn_start()
+            if self.turn == 1:
+                sleep(5)
             if self.turn in [3, 5, 7, 9, 11]:
                 click_away_tier_upgrade()
+            wait_for_turn_start()
             for frozen_index in reversed(range(len(self.frozen_memory))):
                 self.unfreeze(frozen_index)
             self.play_turn()
             wait_for_turn_end()
             if self.turn == 1:
                 choose_name()
+                sleep(5)
             speed_up()
             turn_result = wait_for_turn_result()
-            if turn_result == TurnResults.win:
-                self.wins += 1
-            if turn_result == TurnResults.loss:
-                self.losses += 1
-            if turn_result == TurnResults.game_over:
-                click_away_game_over()
-                print('clicked game over')
-                click_away_points()
-                print('clicked to gain points')
-                self.losses += 1
-            if turn_result == TurnResults.game_won:
-                # TODO :)
-                self.wins += 1
+            self.save_turn_result(turn_result)
             self.increment_turn_and_tier()
+
+    def save_turn_result(self, turn_result):
+
+        if turn_result == TurnResults.win:
+            self.wins += 1
+        if turn_result == TurnResults.loss:
+            self.losses += 1
+        if turn_result == TurnResults.game_over:
+            click_away_game_over()
+            click_away_points()
+            self.losses += 1
+        if turn_result == TurnResults.game_won:
+            # TODO :)
+            self.wins += 1
+
+        file_path = "data/games/" + str(self.game_id) + ".csv"
+        padded_animals = [str(animal)
+                          for animal in [*self.my_animals, *(['empty']*5)][:5]]
+
+        if turn_result == TurnResults.win or turn_result == TurnResults.game_won:
+            score = 1
+        elif turn_result == TurnResults.draw:
+            score = 0.5
+        elif turn_result == TurnResults.loss or turn_result == TurnResults.game_over:
+            score = 0
+
+        comma_separated_line = ','.join([
+            str(self.turn),
+            *padded_animals,
+            str(self.wins),
+            str(self.losses),
+            str(score),
+        ])
+
+        with open(file_path, 'a') as log_file:
+            if(self.turn == 1):
+                log_file.write(','.join(['turn', 'animal_0', 'animal_1', 'animal_2',
+                               'animal_3', 'animal_4', 'wins', 'losses', 'score']))
+            log_file.write('\n')
+            log_file.write(comma_separated_line)
 
     def play_turn(self):
         while self.gold > 0:

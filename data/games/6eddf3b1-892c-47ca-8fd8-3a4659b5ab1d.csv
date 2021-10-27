@@ -1,0 +1,5 @@
+turn,animal_0,animal_1,animal_2,animal_3,animal_4,wins,losses,score
+1,beaver,duck,duck,empty,empty,0,1,0
+2,beaver,duck,duck,ant,horse,0,2,0
+3,beaver,duck,duck,ant,horse,0,3,0
+4,beaver,duck,duck,ant,horse,0,4,0

@@ -1,0 +1,5 @@
+turn,animal_0,animal_1,animal_2,animal_3,animal_4,wins,losses,score
+1,mosquito,horse,pig,empty,empty,0,1,0
+2,mosquito,horse,pig,pig,pig,0,2,0
+3,mosquito,horse,pig,pig,pig,0,3,0
+4,mosquito,horse,pig,pig,pig,0,4,0
